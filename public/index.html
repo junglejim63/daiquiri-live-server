@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<html lang="us">
+   <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"> 
+      <meta charset="utf-8">
+      <title>Daktronics Swim Timer Monitor</title>
+      <!-- ** CSS ** -->
+      <!-- Bootstrap -->
+      <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
+      <!-- ** Custom CSS ** -->
+      <link rel="stylesheet" href="css/index.css">
+      <!-- ** Javascript ** -->
+      <script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script>
+      <script type="text/javascript" src="bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+      <!-- ** Angular controllers ** -->
+      <script type="text/javascript" src="bower_components/angular/angular.min.js"></script>
+      <script type="text/javascript" src="bower_components/angular-animate/angular-animate.min.js"></script>
+      <script type="text/javascript" src="bower_components/angular-sanitize/angular-sanitize.min.js"></script>
+      <script type="text/javascript" src="bower_components/angular-touch/angular-touch.min.js"></script>
+      <!-- ** Socket.io NOTE - this file is served by the socket.io server directly, not as a separate file on the server via http ** -->
+      <!-- **    see https://github.com/automattic/socket.io-client ** -->
+      <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+      
+      <!-- ** Custom js controller for this page ** -->
+      <script type="text/javascript" src="js/daiquiri-live-client-controller.js"></script>
+      
+   </head>
+   <body>
+   <body>
+      <div class="container-fluid" ng-app="myApp" ng-controller="AngularController">
+         <!-- Row 1 -->
+         <div class="row clearfix">
+            <div class="col-xs-12 column"><h4 class='text-center'>{{live.pool.name}}</h4></div>
+            <div class="col-xs-12 column text-center xsmall">Console Date: {{live.clk.date}} {{live.clk.tod}}</div>
+         </div>
+         <!-- Row 2 Event name -->
+         <hr class="xs"/>
+         <div class="row clearfix">
+            <div class="col-xs-12 column bg-primary text-center">{{live.race.name}} ({{live.race.lengths}} Lengths)</div>
+         </div>
+         <!-- Row 3 Event and heat number -->
+         <div class="row clearfix">
+            <div class="col-xs-4 column text-center">Event: <strong>{{live.race.e}}</strong></div>
+            <div class="col-xs-4 column text-center">Heat: <strong>{{live.race.h}}</strong></div>
+            <div class="col-xs-4 column text-center">Race #: <strong>{{live.race.num}}</strong></div>
+         </div>
+         <!-- Row 4 Timer -->
+         <div class="row clearfix">
+            <div id="STARTER" class="col-xs-12 column text-center"><span id="runningClock">{{live.clk.race}}</span></div>
+         </div>
+        <!-- Header Swimmers -->
+         <div class="row clearfix">
+            <div class="col-xs-6 bg-success column text-left"><strong>Lane</strong><small> Swimmer (TEAM)</small></div>
+            <div class="col-xs-4 bg-success column text-center"><strong>Place</strong><span class="xsmall"> (Lengths)</span></div>
+            <div class="col-xs-2 bg-success column text-right"><strong>Time</strong></div>
+         </div>
+        <!-- Row Swimmers -->
+         <div ng-repeat="x in live.lanes">
+            <hr class="xs"/>
+            <div class="row clearfix">
+               <div id="swimmer-{{$index}}" class="col-xs-6 column text-left" ng-bind-html="laneSwimmerHTML($index)"><strong>{{$index+1}}</strong><small> {{x.name}} ({{x.team}})</small></div>
+               <div id="place-length-{{$index}}" class="col-xs-3 column text-center small" ng-bind-html="placeLength($index)"></div>
+               <div id="TP-{{$index}}" class="col-xs-3 column text-right" ng-bind-html="padHTML($index)"></div>
+            </div>
+            <div class="row clearfix">
+               <div id="B1-{{$index}}" class="col-xs-3 column text-left xsmall" ng-bind-html="buttonHTML(0,$index)"></div>
+               <div id="B2-{{$index}}" class="col-xs-3 column text-left xsmall" ng-bind-html="buttonHTML(1,$index)"></div>
+               <div id="B3-{{$index}}" class="col-xs-3 column text-left xsmall" ng-bind-html="buttonHTML(2,$index)"></div>
+               <div id="BK-{{$index}}" class="col-xs-3 column text-left xsmall" ng-bind-html="buttonHTML(3,$index)"></div>
+            </div>
+         </div>
+      </div>
+   </body>
+   </body>
+</html>

@@ -1,0 +1,170 @@
+/*******************************************************
+Daktronics communication protocol guideline
+The Daktronics console and the PC running the swimming application communicate over a serial line at 38400 baud N81
+Every message, whether from pc or console, follows this pattern:
+ * ASCII 01: SOH Start of Header
+ * 9 ASCII number HEADER:
+     * 4 number MessageType
+     * 2 number SubmessageType - either the lane number or sometimes the message order for very long messages
+     * 3 number Length of message in bytes
+ * ASCII 02: STX Start of Text
+ * MESSAGE: variable length message contents
+ * CHECKSUM: one byte checksum, which includes HEADER, STX, and Message. Straight checksum (add all bytes, and modulus 256 is Checksum)
+ * ASCII 04: EOT End of Transmission
+
+ Example:
+   <SOH>001200007<STX> 59 F 101<EOT>
+   |    |   | |  |    |      |- => Checksum = 01
+   |    |   | |  |    |-------- => MESSAGE = ' 59 F 1' 7 characters, in this case event (59) Finals, heat (1)
+   |    |   | |  |------------- => <STX> ASCII 02 Start of Text     
+   |    |   | |---------------- => LENGTH - 007 characters in MESSAGE
+   |    |   |------------------ => SubmessageType - 00 in this case, no SubMessage
+   |    |---------------------- => MessageType - 0012, or Event and heat from Console.
+   |--------------------------- => <SOH> ASCII 01 Start of Header
+
+**********************************************************
+MessageTypes from Console (* are important - need to parse for interface):
+**********************************************************
+0000 - 000004000   Unknown.  Empty Message.  Maybe ACK
+----------------------------------------------------------
+0001 - 000100000   Unknown.  Empty Message.
+----------------------------------------------------------
+0003 - 000300022   '01/15/201618:20:58.160   -> Console or PC time - MM/DD/YYYYhh:mm:ss.xxx
+----------------------------------------------------------
+0004 - 000400000   Empty Message.  Looks like RESET for the Timer
+----------------------------------------------------------
+*0005 - 000500014   '11    8:48.2  ' -> Running Clock.  Unknown what 11 is - maybe which end of pool?
+  This message is the most common message, and is sent every 10th of a second while race clock is running
+   Submessage - always 00
+   Message 0-1   - 11 or 01, ignore
+   Message 5-11  - Running clock mm:ss.t 
+----------------------------------------------------------
+*0006 - 000600018   '01/15/201619:51:02' -> TOD clock from console
+  This message is the second most common message, and is sent every second independent of race clock
+   Submessage - always 00
+   Message 0-17  - Date and Time from console clock, MM/DD/YYYYhh:mm:ss
+----------------------------------------------------------
+*0009 - 000908011   '100o?000020' -> Looks like some kind of lane data, but cannot find the pattern.
+                                    First 3 digits are 000, 100, 101, or 200.  then space, * - + o.  Then some weird numbers.  Last 2 digits look like lengths. -?17 looks like  timer, then +?00 split arm.  *?00 is finish armed, and o?00 is finished.
+   Submessage - Lane (in example, Lane 08)
+   Message 0-2   - Seems to always be 000, 100, 101, or 200.  000 if lane is empty or unused?
+   Message 3     - TP arm state?
+                     '-': arm timer counting
+                     '+': split timer armed
+                     '*': finish timer armed
+                     'o': Finished
+   Message 4     - Always '?' if lane is being used...
+   Message 5-6   - Arm timer setpoint, '17' in many messages
+   Message 7-8   - Always 00
+   Message 9-10  - Lengths completed
+   If arm timer is counting and 00 lengths, clear previous results
+----------------------------------------------------------
+0010 - 001000002   '11' -> One message on startup, maybe says which end?  The 11 matches with 11 in msg type 0005
+----------------------------------------------------------
+*0011 - 001100003   ' 30' -> Race Number
+   Submessage - always 00
+   Message 0-2   - Race number, incrementing number from console
+----------------------------------------------------------
+*0012 - 001200007   ' 10 F 1' -> Event, Event Type, Heat,
+   Submessage - always 00
+   Message 0-2   - Current event number
+   Message 3-4   - ?Event type.  ' F' for Finals, Don't know others
+   Message 5-6   - Current heat number
+----------------------------------------------------------
+0013 - 001300002   '20' -> Lengths for current race
+----------------------------------------------------------
+0014 - 001400049   '0800110017240308005051000605001101103081110100000' -> Only once, do not know what it is
+----------------------------------------------------------
+*0016 - 001601302  MEET ORDER -> '10001 F0200011410+U0504 3:23.50 002 F0200021410+U0504  :  .   003 F0200011411120504 2:21.16 004 F0200021411120504 2:10.34 005 F0400011413+O0504  :  .   006 F0400021413+O0504  :  .   007 F0200011410+U0104  :  .   008 F0200021410+U0104  :  .   009 F0500011411120104 5:29.84 010 F0500021411120104 5:23.33'
+     Events:
+         001 F0200011410+U0504 3:23.50 
+         002 F0200021410+U0504  :  .   
+         003 F0200011411120504 2:21.16 
+         004 F0200021411120504 2:10.34 
+         005 F0400011413+O0504  :  .   
+         006 F0400021413+O0504  :  .   
+         007 F0200011410+U0104  :  .   
+         008 F0200021410+U0104  :  .   
+         009 F0500011411120104 5:29.84 
+         010 F0500021411120104 5:23.33
+   Submessage - Message number: nn, 01, 02, 03, etc. as many as needed to send entire mmeet order
+   Message 0-1   - Number of events being sent.  Max is 10, then another message is sent for the rest.
+   Repeating Message 2-4*   - Event number            *Each Event has 30 characters!
+   Repeating Message 5-6*   - Event type, ' F' is for finals, don't know other types
+   Repeating Message 7-10*  - Distance, '0200' is 200 yards or meters    
+   Repeating Message 11-12* - Gender, '01' is girls, '02' is boys, '03' women maybe? '04' men, and '05' mixed?
+   Repeating Message 13-14* - Always 14, maybe feet?
+   Repeating Message 15-16* - First age value, '10' years old in this case
+   Repeating Message 17-18* - Second age value, can be number or '+U' for and Under, or '+O' for and Over
+   Repeating Message 19-20* - Stroke: 01=Free, 02=Back, 03=Breast, 04=Fly, 05=IM, 06=Free Relay, 07=MR, 11=Diving
+   Repeating Message 21-22* - Always '04'
+   Repeating Message 23-30* - Some kind of time standard in mm:ss.xx like ' 1:05.84'
+   Repeating Message 31*    - Trailing space
+   
+   Last event in group is all zeros, like '000   0000 000000000000  :  .   '
+----------------------------------------------------------
+0017 - 001700052   '02301/08/201622:30:48.35310801000023010003 F01080200' => Maybe result from Store print?
+                    1st 3 are race number, then date and time, bunch of crap, then event (003) event type (' F')
+                    and heat (01), lengths (08), and distance (0200)
+----------------------------------------------------------
+0018 - 001800059   '079 1002006 1002005 1002002 1002001 1002003 1002004 1002007 1002008'  Store print?
+                    First 3 are race number, then 8 sets of 7 characters.  Maybe order? I added the spaces.
+----------------------------------------------------------
+0021 - 002100014   CURRFILE  '0040   CURRFILE' -> Don't know
+----------------------------------------------------------
+0022 - 002200017   CURRFILE  '001 01F   CURRFILE' -> Event and heat followed by CURRFILE I think
+----------------------------------------------------------
+0029 - 002901000   '' -> Empty Message, probably a command
+----------------------------------------------------------
+0030 - 003000032   '     000     000     000     000' -> Don't know, only one message
+----------------------------------------------------------
+0031 - 003100000   '' -> Empty Message, probably a command
+----------------------------------------------------------
+*01xx - 010002024   '19:50:55.822    9:22.65 ' -> Raw I/O from touchpads, buttons, and starter
+   MessageType: 
+      0100 -> TouchPad Off
+      0101 -> TouchPad On
+      0102 -> BTN1 Off
+      0103 -> BTN1 On
+      0104 -> BTN2 Off
+      0105 -> BTN2 On
+      0106 -> BTN3 Off
+      0107 -> BTN3 On
+      0110 -> Start Off
+      0111 -> Start On
+   Submessage - lane number (02 in example)
+   Message 0-11  - Time of day to thousandths. hh:mm:ss.xxx.
+   Message 15-22 - Running clock to hundredths. mm:ss.xx.
+----------------------------------------------------------
+0900 - 090000040   'OMNISPORT 2000 VERSION 13.09.18         ' -> Console Model and F/W rev
+----------------------------------------------------------
+*1000 - 100001020   'Jones, Matthew VIPR ' -> Swimmer Name and Club
+   Submessage - lane number (01 in example)
+   Message 0-14  - Swimmer name.
+   Message 15-19  - Team name.
+----------------------------------------------------------
+*10nn - 100208012   '02 5:06.48  ' -> Length completed status: Place Time 
+   MessageType: nn is any number from 01-66, represents lengths completed
+   Submessage - lane number (08 in example)
+   Message 0-1   - Place, '01' to '08'.
+   Message 2-9  - Running clock to hundredths. mm:ss.xx.
+----------------------------------------------------------
+*1067-1070 - 106704009 ' 6:17.77 ' -> Button Times
+   MessageType: 
+      1067 -> Button 1 time (race clock)
+      1068 -> Button 2 time (race clock)
+      1069 -> Button 3 time (race clock)
+      1070 -> Backup time (race clock) - should be multiple messages.  1st is 1st btn time pressed, second is average of btns
+   Submessage - lane number (04 in example)
+   Message 0-7  - Running clock to hundredths. mm:ss.xx.
+----------------------------------------------------------
+11nn - 110208013   '079  5:25.43 ' -> Length completed data from memory - race number and time
+   MessageType: nn is any number from 01-66, represents lengths completed
+   Submessage - lane number (08 in example)
+   Message 0-2   - Race number, '079' in example.
+   Message 4-11   - Race clock to hundredths from memory, mm:ss.xx.
+----------------------------------------------------------
+1167 - 116701039   '077 6:17.75  6:17.74  6:17.77     0.00 '    Race, backup, btn1, btn2
+   Goes with 11nn above, data from memory.
+----------------------------------------------------------
+*******************************************************/

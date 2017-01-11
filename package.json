@@ -1,0 +1,25 @@
+{
+  "name": "daiquiri-live-server",
+  "version": "1.0.0",
+  "description": "Processes messages from Daktroincs swim console and serves live web pages reflecting status",
+  "main": "daiquiri-live-server.js",
+  "scripts": {
+    "start": "node daiquiri-live-server.js config-production.js",
+    "test": "node daiquiri-live-server.js config-test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junglejim63/daiquiri-live-server.git"
+  },
+  "author": "Jim Wiesler",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/junglejim63/daiquiri-live-server/issues"
+  },
+  "homepage": "https://github.com/junglejim63/daiquiri-live-server#readme",
+  "dependencies": {
+    "amqplib": "^0.5.1",
+    "express": "^4.14.0",
+    "socket.io": "^1.7.2"
+  }
+}
