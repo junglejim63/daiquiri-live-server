@@ -7,6 +7,8 @@ var server = require('http').Server(app);
 var io = require('socket.io')(server);
 
 var poolTimer = new daiquiriDecode.DaiquiriLive(config);
+//Allows port to be set by environment variable, otherwise uses port from config file
+config.httpPort = process.env.PORT || config.httpPort;
 
 server.listen(config.httpPort);
 app.use(express.static(__dirname + '/public'));
